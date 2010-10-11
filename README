@@ -1,0 +1,7 @@
+===========================================
+ OpenGL Viewer for the GraphStream project
+===========================================
+
+Requirements:
+- gs-core (http://github.com/graphstream/gs-core)
+- jogl (https://jogl.dev.java.net)
