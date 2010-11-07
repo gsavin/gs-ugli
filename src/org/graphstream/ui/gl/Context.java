@@ -22,47 +22,99 @@
  */
 package org.graphstream.ui.gl;
 
-import org.graphstream.stream.Source;
+import javax.media.opengl.GLCapabilities;
 
-public class Context
-{
-	public static enum NodeColorMode
-	{
-		AllNodeOneColor,
-		EachNodeOneColor
+import org.graphstream.stream.Source;
+import org.graphstream.ui.gl.engine.NEWTEngine;
+import org.graphstream.ui.gl.engine.SWINGEngine;
+import org.graphstream.ui.gl.event.KeyManager;
+import org.graphstream.ui.gl.renderer.VertexArrayRenderer;
+
+import com.jogamp.opengl.util.Animator;
+import com.jogamp.opengl.util.FPSAnimator;
+
+public class Context {
+	public static enum NodeColorMode {
+		AllNodeOneColor, EachNodeOneColor
 	}
-	
-	public static enum EdgeColorMode
-	{
-		AllEdgeOneColor,
-		EachEdgeOneColor,
-		ExtremitiesBlending
+
+	public static enum EdgeColorMode {
+		AllEdgeOneColor, EachEdgeOneColor, ExtremitiesBlending
 	}
-	
+
+	public static enum EngineType {
+		AWT, SWING, NEWT
+	}
+
 	protected Source source;
 	protected Camera camera;
-	
+
 	protected NodeColorMode nodeColorMode;
+
+	protected Fog fog;
 	
-	public Context( Source source )
-	{
+	protected Engine engine;
+
+	protected GraphRenderer renderer;
+	
+	protected KeyManager keyManager;
+	
+	public Context(Source source,EngineType engineType) {
 		this.source = source;
-		this.camera = new Camera();
+		this.camera = new Camera(this);
 		this.nodeColorMode = NodeColorMode.EachNodeOneColor;
+		
+		this.fog = new Fog();
+
+		switch (engineType) {
+		case AWT:
+		case SWING:
+			engine = new SWINGEngine();
+			break;
+		case NEWT:
+			engine = new NEWTEngine();
+			break;
+		}
+		
+		this.renderer = new VertexArrayRenderer(this);
+		this.keyManager = new KeyManager(this);
 	}
 	
-	public Camera getCamera()
-	{
+	public void init(GLCapabilities caps,String title, int width, int height) {
+		engine.init(caps);
+		engine.setWindowSize(width,height);
+		engine.setWindowVisible(true);
+		engine.setWindowTitle(title);
+		engine.addGLEventListener(renderer);
+		engine.addKeyListener(keyManager);
+
+		Animator animator = new FPSAnimator(
+				engine.getGLAutoDrawable(), 60);
+		animator.add(engine.getGLAutoDrawable());
+		animator.start();
+	}
+
+	public Camera getCamera() {
 		return camera;
 	}
-	
-	public Source getSource()
-	{
+
+	public Source getSource() {
 		return source;
 	}
-	
-	public NodeColorMode getNodeColorMode()
-	{
+
+	public NodeColorMode getNodeColorMode() {
 		return nodeColorMode;
+	}
+	
+	public Fog getFog() {
+		return fog;
+	}
+	
+	public Engine getEngine() {
+		return engine;
+	}
+	
+	public GraphRenderer getRenderer() {
+		return renderer;
 	}
 }

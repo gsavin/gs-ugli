@@ -29,56 +29,60 @@ import javax.media.opengl.awt.GLCanvas;
 import javax.swing.JFrame;
 
 import org.graphstream.ui.gl.Engine;
+import org.graphstream.ui.gl.event.KeyListener_SWING_to_NEWT;
 
-public class SWINGEngine
-	implements Engine
-{
+import com.jogamp.newt.event.KeyListener;
+
+public class SWINGEngine implements Engine {
 	GLCanvas canvas;
 	JFrame frame;
+
+	KeyListener_SWING_to_NEWT keyListeners;
 	
-	public void init(GLCapabilities caps)
-	{
-		if( canvas != null )
-		{
+	public void init(GLCapabilities caps) {
+		if (canvas != null) {
 			// TODO
 		}
+
+		keyListeners = new KeyListener_SWING_to_NEWT();
 		
 		canvas = new GLCanvas(caps);
-		
-		if( frame != null )
-		{
+		canvas.addKeyListener(keyListeners);
+		if (frame != null) {
 			// TODO
 		}
-		
+
 		frame = new JFrame();
-		frame.add( canvas );
-		
-		frame.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
+		frame.add(canvas);
+
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
 
-	public void setWindowSize(int width, int height)
-	{
+	public void setWindowSize(int width, int height) {
 		frame.setSize(width, height);
 	}
 
-	public void addGLEventListener(GLEventListener l)
-	{
+	public void addGLEventListener(GLEventListener l) {
 		canvas.addGLEventListener(l);
 	}
 
-	public void setWindowTitle(String title)
-	{
+	public void setWindowTitle(String title) {
 		frame.setTitle(title);
 	}
 
-	public void setWindowVisible(boolean on)
-	{
+	public void setWindowVisible(boolean on) {
 		frame.setVisible(on);
 	}
 
-	public GLAutoDrawable getGLAutoDrawable()
-	{
+	public GLAutoDrawable getGLAutoDrawable() {
 		return canvas;
 	}
 
+	public void addKeyListener(KeyListener l) {
+		keyListeners.add(l);
+	}
+
+	public void removeKeyListener(KeyListener l) {
+		keyListeners.remove(l);
+	}
 }

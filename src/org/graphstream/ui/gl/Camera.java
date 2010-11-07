@@ -25,49 +25,79 @@ package org.graphstream.ui.gl;
 import javax.media.opengl.GL2;
 import javax.media.opengl.glu.GLU;
 
-public class Camera
-{
-	protected final float [] watched = { 0, 0, 0 };
-	protected float distance = 2;
+public class Camera {
+	public static enum Mode {
+		NODE_TRACKING,
+		STATIC
+	}
+	
+	protected Mode mode;
+	
+	protected Context ctx;
+	
+	protected final float[] watched = { 0, 0, 0 };
+	protected float distance = 7;
 	protected float gamma = 0;
 	protected float teta = 0;
-	
-	protected final float [] eye = { 0, 0, 0 };
-	
+
+	protected final float[] eye = { 0, 0, 0 };
+
 	protected float zoomFactor = 0.1f;
+
+	public Camera(Context ctx) {
+		this.ctx = ctx;
+	}
 	
-	public void pushModelView( GL2 gl, GLU glu )
-	{
+	public void pushModelView(GL2 gl, GLU glu) {
 		gl.glMatrixMode(GL2.GL_MODELVIEW);
 		gl.glPushMatrix();
 		gl.glLoadIdentity();
-		
-		eye [0] = (float) ( distance * Math.sin(gamma) * Math.cos(teta) );
-		eye [1] = (float) ( distance * Math.sin(gamma) * Math.sin(teta) );
-		eye [2] = (float) ( distance * Math.cos(gamma) );
-		
-		glu.gluLookAt(
-				eye [0], eye [1], eye [2],
-				watched [0], watched [1], watched [2],
-				0,1,0);
-		
-		gamma += 0.001f;
-		teta  += 0.004f;
+		/*
+		eye[0] = (float) (distance * Math.sin(gamma) * Math.cos(teta));
+		eye[1] = (float) (distance * Math.sin(gamma) * Math.sin(teta));
+		eye[2] = (float) (distance * Math.cos(gamma));
+		 */
+		//glu.gluLookAt(eye[0], eye[1], eye[2], watched[0], watched[1],
+				//watched[2], 0, 1, 0);
+		glu.gluLookAt(0,0,distance, watched[0], watched[1],
+				watched[2], 0, 1, 0);
+
+		gl.glPushMatrix();
+		gl.glRotatef(gamma,0,1,0);
+		gl.glRotatef(teta,1,0,0);
 	}
-	
-	public void popModelView( GL2 gl )
-	{
+
+	public void popModelView(GL2 gl) {
+		gl.glPopMatrix();
 		gl.glPopMatrix();
 		gl.glMatrixMode(GL2.GL_MODELVIEW);
 	}
-	
-	public void zoomIn()
-	{
-		distance *= ( 1 - zoomFactor );
+
+	public void rotateLeft() {
+		gamma += 1;
+		gamma %= 360;
 	}
-	
-	public void zoomOut()
-	{
-		distance *= ( 1 + zoomFactor );
+
+	public void rotateRight() {
+		gamma -= 1;
+		gamma %= 360;
+	}
+
+	public void rotateUp() {
+		teta += 1;
+		teta %= 360;
+	}
+
+	public void rotateDown() {
+		teta -= 1;
+		teta %= 360;
+	}
+
+	public void zoomIn() {
+		distance *= (1 - zoomFactor);
+	}
+
+	public void zoomOut() {
+		distance *= (1 + zoomFactor);
 	}
 }

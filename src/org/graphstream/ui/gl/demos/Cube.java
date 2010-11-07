@@ -27,86 +27,75 @@ import java.util.Random;
 import org.graphstream.stream.SourceBase;
 import org.graphstream.ui.gl.JOGLViewer;
 
-public class Cube
-{
-	protected static class ManualSource
-		extends SourceBase
-	{
-		public void addNode( String id )
-		{
-			sendNodeAdded( "manual-source", id );
+public class Cube {
+	protected static class ManualSource extends SourceBase {
+		public void addNode(String id) {
+			sendNodeAdded("manual-source", id);
 		}
-		
-		public void setNodeCoords( String id, float ... xyz )
-		{
-			sendNodeAttributeAdded( "manual-source", id, "xyz", xyz );
+
+		public void setNodeCoords(String id, float... xyz) {
+			sendNodeAttributeAdded("manual-source", id, "xyz", xyz);
 		}
-		
-		public void setNodeColor( String id, float ... rgba )
-		{
-			sendNodeAttributeAdded( "manual-source", id, "ui.color", rgba );
+
+		public void setNodeColor(String id, float... rgba) {
+			sendNodeAttributeAdded("manual-source", id, "ui.color", rgba);
 		}
-		
-		public void addEdge( String id, String from, String to, boolean directed )
-		{
-			sendEdgeAdded( "manual-source", id, from, to, directed );
+
+		public void addEdge(String id, String from, String to, boolean directed) {
+			sendEdgeAdded("manual-source", id, from, to, directed);
 		}
 	}
-	
-	public static void main( String ... args )
-	{
-		System.setProperty( "gs.gl.maxnodes", "100000" );
-		System.setProperty( "gs.gl.maxedges", "2000000" );
-		
+
+	public static void main(String... args) {
+		System.setProperty("gs.gl.maxnodes", "100000");
+		System.setProperty("gs.gl.maxedges", "2000000");
+
 		// Graph g = new DefaultGraph( "cube-graph" );
 		ManualSource src = new ManualSource();
-		
-		// JOGLViewer viewer = 
-			new JOGLViewer(src);
-		
+
+		// JOGLViewer viewer =
+		new JOGLViewer(src);
+
 		Random random = new Random();
-			
-		float size = 15;
-		
-		if( args != null && args.length > 0 )
-			size = Integer.parseInt(args [0]);
-		
-		for( int i = 0; i < size; i++ )
-			for( int j = 0; j < size; j++ )
-				for( int k = 0; k < size; k++ )
-				{
-					String id = String.format("%d_%d_%d",i,j,k);
-					float [] coords = new float [] { -1 + i / ( size / 2.0f ), -1 + j / ( size / 2.0f ), -1 + k / ( size / 2.0f ) };
-					
+
+		float size = 5;
+
+		if (args != null && args.length > 0)
+			size = Integer.parseInt(args[0]);
+
+		for (int i = 0; i < size; i++)
+			for (int j = 0; j < size; j++)
+				for (int k = 0; k < size; k++) {
+					String id = String.format("%d_%d_%d", i, j, k);
+					float[] coords = new float[] { -1 + i / (size / 2.0f),
+							-1 + j / (size / 2.0f), -1 + k / (size / 2.0f) };
+
 					/*
-					g.addNode( id )
-					.addAttribute( "xyz", coords );
-					*/
-					
+					 * g.addNode( id ) .addAttribute( "xyz", coords );
+					 */
+
 					src.addNode(id);
-					src.setNodeCoords(id,coords);
-					src.setNodeColor(id,new float [] {random.nextFloat(),random.nextFloat(),random.nextFloat(),0.8f});
-					
-					if( i > 0 )
-					{
-						String backXid = String.format("%d_%d_%d",i-1,j,k);
+					src.setNodeCoords(id, coords);
+					src.setNodeColor(id, new float[] { random.nextFloat(),
+							random.nextFloat(), random.nextFloat(), 0.8f });
+
+					if (i > 0) {
+						String backXid = String.format("%d_%d_%d", i - 1, j, k);
 						// g.addEdge( id + "::" + backXid, id, backXid );
-						src.addEdge( id + "::" + backXid, id, backXid, false );
+						src.addEdge(id + "::" + backXid, id, backXid, false);
 					}
-					
-					if( j > 0 )
-					{
-						String backYid = String.format("%d_%d_%d",i,j-1,k);
+
+					if (j > 0) {
+						String backYid = String.format("%d_%d_%d", i, j - 1, k);
 						// g.addEdge( id + "::" + backYid, id, backYid );
-						src.addEdge( id + "::" + backYid, id, backYid, false );
-						
+						src.addEdge(id + "::" + backYid, id, backYid, false);
+
 					}
-					
-					if( k > 0 )
-					{
-						String backZid = String.format("%d_%d_%d",i,j,k-1);
+
+					if (k > 0) {
+						String backZid = String.format("%d_%d_%d", i, j, k - 1);
 						// g.addEdge( id + "::" + backZid, id, backZid );
-						src.addEdge( id + "::" + backZid, id, backZid, false );
+						src.addEdge(id + "::" + backZid, id, backZid, false);
 					}
 				}
 	}

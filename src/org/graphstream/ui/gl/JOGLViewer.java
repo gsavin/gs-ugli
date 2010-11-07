@@ -27,17 +27,11 @@ import javax.media.opengl.GLProfile;
 import javax.swing.JPanel;
 
 import org.graphstream.stream.Source;
-import org.graphstream.ui.gl.engine.NEWTEngine;
-import org.graphstream.ui.gl.engine.SWINGEngine;
-import org.graphstream.ui.gl.renderer.GraphBuffers;
-import org.graphstream.ui.gl.renderer.VertexArrayRenderer;
+import org.graphstream.ui.layout.Layout;
+import org.graphstream.ui.layout.LayoutRunner;
+import org.graphstream.ui.layout.springbox.SpringBox;
 
-import com.jogamp.opengl.util.Animator;
-import com.jogamp.opengl.util.FPSAnimator;
-
-public class JOGLViewer
-	extends JPanel
-{
+public class JOGLViewer extends JPanel {
 	/**
 	 * 
 	 */
@@ -46,58 +40,50 @@ public class JOGLViewer
 	/*
 	 * Improves openGL performances.
 	 */
-	static
-	{
+	static {
 		GLProfile.initSingleton();
 	}
-	
-	public static enum EngineType
-	{
-		AWT,
-		SWING,
-		NEWT
-	}
-	
+
 	GLProfile glp;
 	GLCapabilities glc;
 
-	Engine engine;
-	
-	GraphBuffers buffers;
-	
 	Context ctx;
-	
-	public JOGLViewer( Source source )
-	{
-		this( source, EngineType.NEWT );
+
+	Source source;
+
+	LayoutRunner layout;
+
+	public JOGLViewer(Source source) {
+		this(source, Context.EngineType.NEWT);
 	}
-	
-	public JOGLViewer( Source source, EngineType engineType )
-	{
+
+	public JOGLViewer(Source source, Context.EngineType engineType) {
+		this.source = source;
+
 		glp = GLProfile.getDefault();
 		glc = new GLCapabilities(glp);
-		
-		switch( engineType )
-		{
-		case AWT:
-		case SWING:
-			engine = new SWINGEngine();
-			break;
-		case NEWT:
-			engine = new NEWTEngine();
-			break;
+
+		ctx = new Context(source, engineType);
+		ctx.init(glc, "The GraphStream GL Viewer", 600, 600);
+
+		enableAutoLayout();
+	}
+
+	public void enableAutoLayout() {
+		enableAutoLayout(new SpringBox(true));
+	}
+
+	public void enableAutoLayout(Layout layoutAlgorithm) {
+		disableAutoLayout();
+		layout = new LayoutRunner(source, layoutAlgorithm, true);
+		layoutAlgorithm.addListener(ctx.getRenderer().getLayoutListener());
+	}
+
+	public void disableAutoLayout() {
+		if (layout != null) {
+
+			layout.release();
+			layout = null;
 		}
-		
-		ctx = new Context( source );
-		
-		engine.init(glc);
-		engine.setWindowSize(600, 600);
-		engine.setWindowVisible(true);
-		engine.setWindowTitle("The GraphStream GL Viewer");
-        engine.addGLEventListener( new VertexArrayRenderer( ctx ) );
-        
-        Animator animator = new FPSAnimator( engine.getGLAutoDrawable(), 60 );
-        animator.add( engine.getGLAutoDrawable() );
-        animator.start();
 	}
 }

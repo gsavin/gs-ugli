@@ -4,17 +4,22 @@ import javax.media.opengl.GLAutoDrawable;
 import javax.media.opengl.GLCapabilities;
 import javax.media.opengl.GLEventListener;
 
-public interface Engine
-{
-	void init( GLCapabilities caps );
+import com.jogamp.newt.event.KeyListener;
+
+public interface Engine {
+	void init(GLCapabilities caps);
+
+	void setWindowSize(int width, int height);
+
+	void addGLEventListener(GLEventListener l);
 	
-	void setWindowSize( int width, int height );
+	void addKeyListener(KeyListener l);
 	
-	void addGLEventListener( GLEventListener l );
-	
-	void setWindowTitle( String title );
-	
-	void setWindowVisible( boolean on );
-	
+	void removeKeyListener(KeyListener l);
+
+	void setWindowTitle(String title);
+
+	void setWindowVisible(boolean on);
+
 	GLAutoDrawable getGLAutoDrawable();
 }

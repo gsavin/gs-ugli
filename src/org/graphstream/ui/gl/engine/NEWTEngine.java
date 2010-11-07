@@ -6,54 +6,53 @@ import javax.media.opengl.GLEventListener;
 
 import org.graphstream.ui.gl.Engine;
 
+import com.jogamp.newt.event.KeyListener;
 import com.jogamp.newt.event.WindowAdapter;
 import com.jogamp.newt.event.WindowEvent;
 import com.jogamp.newt.opengl.GLWindow;
 
-public class NEWTEngine
-	implements Engine
-{
+public class NEWTEngine implements Engine {
 	protected GLWindow window;
-	
-	public void init( GLCapabilities caps )
-	{
-		if( window != null )
-		{
+
+	public void init(GLCapabilities caps) {
+		if (window != null) {
 			// TODO
 		}
-		
+
 		window = GLWindow.create(caps);
 
-        window.addWindowListener(new WindowAdapter() {
-            public void windowDestroyNotify(WindowEvent arg0) {
-                System.exit(0);
-            };
-        });
+		window.addWindowListener(new WindowAdapter() {
+			public void windowDestroyNotify(WindowEvent arg0) {
+				System.exit(0);
+			};
+		});
 	}
-	
-	public void setWindowSize(int width, int height)
-	{
+
+	public void setWindowSize(int width, int height) {
 		window.setSize(width, height);
 	}
 
-	public void addGLEventListener(GLEventListener l)
-	{
+	public void addGLEventListener(GLEventListener l) {
 		window.addGLEventListener(l);
 	}
 
-	public void setWindowTitle(String title)
-	{
-		window.setTitle( title );
+	public void setWindowTitle(String title) {
+		window.setTitle(title);
 	}
 
-	public void setWindowVisible(boolean on)
-	{
+	public void setWindowVisible(boolean on) {
 		window.setVisible(on);
 	}
 
-	public GLAutoDrawable getGLAutoDrawable()
-	{
+	public GLAutoDrawable getGLAutoDrawable() {
 		return window;
 	}
 
+	public void addKeyListener(KeyListener l) {
+		window.addKeyListener(l);
+	}
+	
+	public void removeKeyListener(KeyListener l) {
+		window.removeKeyListener(l);
+	}
 }
