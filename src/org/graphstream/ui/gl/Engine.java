@@ -22,4 +22,8 @@ public interface Engine {
 	void setWindowVisible(boolean on);
 
 	GLAutoDrawable getGLAutoDrawable();
+	
+	void setFullscreen(boolean on);
+	
+	boolean isFullscreen();
 }

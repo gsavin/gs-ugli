@@ -26,6 +26,8 @@ public class NEWTEngine implements Engine {
 				System.exit(0);
 			};
 		});
+		
+		System.out.printf("using NEWT engine [display=(%s,%s)]%n",window.getScreen().getDisplay().getType(),window.getScreen().getDisplay().getName());
 	}
 
 	public void setWindowSize(int width, int height) {
@@ -54,5 +56,13 @@ public class NEWTEngine implements Engine {
 	
 	public void removeKeyListener(KeyListener l) {
 		window.removeKeyListener(l);
+	}
+	
+	public void setFullscreen(boolean on) {
+		window.setFullscreen(on);
+	}
+	
+	public boolean isFullscreen() {
+		return window.isFullscreen();
 	}
 }

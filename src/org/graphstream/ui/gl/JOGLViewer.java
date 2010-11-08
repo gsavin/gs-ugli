@@ -52,12 +52,18 @@ public class JOGLViewer extends JPanel {
 	Source source;
 
 	LayoutRunner layout;
-
+	Layout layoutAlgorithm;
+	
 	public JOGLViewer(Source source) {
-		this(source, Context.EngineType.NEWT);
+		this(source, true, Context.EngineType.NEWT);
 	}
 
-	public JOGLViewer(Source source, Context.EngineType engineType) {
+	public JOGLViewer(Source source, boolean autoLayout) {
+		this(source, autoLayout, Context.EngineType.NEWT);
+	}
+
+	public JOGLViewer(Source source, boolean autoLayout,
+			Context.EngineType engineType) {
 		this.source = source;
 
 		glp = GLProfile.getDefault();
@@ -66,7 +72,8 @@ public class JOGLViewer extends JPanel {
 		ctx = new Context(source, engineType);
 		ctx.init(glc, "The GraphStream GL Viewer", 600, 600);
 
-		enableAutoLayout();
+		if (autoLayout)
+			enableAutoLayout();
 	}
 
 	public void enableAutoLayout() {
@@ -77,11 +84,12 @@ public class JOGLViewer extends JPanel {
 		disableAutoLayout();
 		layout = new LayoutRunner(source, layoutAlgorithm, true);
 		layoutAlgorithm.addListener(ctx.getRenderer().getLayoutListener());
+		this.layoutAlgorithm = layoutAlgorithm;
 	}
 
 	public void disableAutoLayout() {
 		if (layout != null) {
-
+			layoutAlgorithm.removeListener(ctx.getRenderer().getLayoutListener());
 			layout.release();
 			layout = null;
 		}

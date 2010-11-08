@@ -31,6 +31,22 @@ public class Camera {
 		STATIC
 	}
 	
+	public static enum RotationAnim {
+		NONE(0,0),
+		LEFT(-1,0),
+		RIGHT(1,0),
+		UP(0,1),
+		DOWN(0,-1)
+		;
+		float deltaGamma;
+		float deltaTeta;
+		
+		RotationAnim(float deltaGamma, float deltaTeta) {
+			this.deltaGamma = deltaGamma;
+			this.deltaTeta = deltaTeta;
+		}
+	}
+	
 	protected Mode mode;
 	
 	protected Context ctx;
@@ -44,6 +60,11 @@ public class Camera {
 
 	protected float zoomFactor = 0.1f;
 
+	protected float zFar = 100;
+	
+	protected RotationAnim rotationAnim = RotationAnim.NONE;
+	protected float rotationSpeed = 1;
+	
 	public Camera(Context ctx) {
 		this.ctx = ctx;
 	}
@@ -65,6 +86,13 @@ public class Camera {
 		gl.glPushMatrix();
 		gl.glRotatef(gamma,0,1,0);
 		gl.glRotatef(teta,1,0,0);
+		
+		if( rotationAnim != RotationAnim.NONE ) {
+			gamma += rotationAnim.deltaGamma * rotationSpeed;
+			gamma %= 360;
+			teta += rotationAnim.deltaTeta * rotationSpeed;
+			teta %= 360;
+		}
 	}
 
 	public void popModelView(GL2 gl) {
@@ -73,6 +101,10 @@ public class Camera {
 		gl.glMatrixMode(GL2.GL_MODELVIEW);
 	}
 
+	public float getZFar() {
+		return zFar;
+	}
+	
 	public void rotateLeft() {
 		gamma += 1;
 		gamma %= 360;
@@ -99,5 +131,28 @@ public class Camera {
 
 	public void zoomOut() {
 		distance *= (1 + zoomFactor);
+	}
+	
+	public void increaseZFar() {
+		zFar += 1;
+	}
+	
+	public void decreaseZFar() {
+		zFar -= 1;
+		zFar = Math.max(0,zFar);
+	}
+	
+	public void toggleRotationAnim( RotationAnim ra ) {
+		rotationAnim = ra;
+	}
+	
+	public void increaseRotationSpeed() {
+		rotationSpeed += 0.1f;
+		rotationSpeed = Math.max(0,Math.min(2,rotationSpeed));
+	}
+	
+	public void decreaseRotationSpeed() {
+		rotationSpeed -= 0.1f;
+		rotationSpeed = Math.max(0,Math.min(2,rotationSpeed));
 	}
 }

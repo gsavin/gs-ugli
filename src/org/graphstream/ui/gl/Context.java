@@ -52,18 +52,20 @@ public class Context {
 	protected NodeColorMode nodeColorMode;
 
 	protected Fog fog;
-	
+
 	protected Engine engine;
 
 	protected GraphRenderer renderer;
-	
+
 	protected KeyManager keyManager;
+
+	protected boolean displayInfos = false;
 	
-	public Context(Source source,EngineType engineType) {
+	public Context(Source source, EngineType engineType) {
 		this.source = source;
 		this.camera = new Camera(this);
 		this.nodeColorMode = NodeColorMode.EachNodeOneColor;
-		
+
 		this.fog = new Fog();
 
 		switch (engineType) {
@@ -75,21 +77,20 @@ public class Context {
 			engine = new NEWTEngine();
 			break;
 		}
-		
+
 		this.renderer = new VertexArrayRenderer(this);
 		this.keyManager = new KeyManager(this);
 	}
-	
-	public void init(GLCapabilities caps,String title, int width, int height) {
+
+	public void init(GLCapabilities caps, String title, int width, int height) {
 		engine.init(caps);
-		engine.setWindowSize(width,height);
+		engine.setWindowSize(width, height);
 		engine.setWindowVisible(true);
 		engine.setWindowTitle(title);
 		engine.addGLEventListener(renderer);
 		engine.addKeyListener(keyManager);
 
-		Animator animator = new FPSAnimator(
-				engine.getGLAutoDrawable(), 60);
+		Animator animator = new FPSAnimator(engine.getGLAutoDrawable(), 60);
 		animator.add(engine.getGLAutoDrawable());
 		animator.start();
 	}
@@ -105,16 +106,28 @@ public class Context {
 	public NodeColorMode getNodeColorMode() {
 		return nodeColorMode;
 	}
-	
+
 	public Fog getFog() {
 		return fog;
 	}
-	
+
 	public Engine getEngine() {
 		return engine;
 	}
-	
+
 	public GraphRenderer getRenderer() {
 		return renderer;
+	}
+
+	public void toggleFullscreen() {
+		engine.setFullscreen(!engine.isFullscreen());
+	}
+	
+	public void setDisplayInfos(boolean on) {
+		this.displayInfos = on;
+	}
+	
+	public boolean isDisplayInfos() {
+		return displayInfos;
 	}
 }

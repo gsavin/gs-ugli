@@ -52,13 +52,15 @@ public abstract class GraphRenderer implements GLEventListener {
 	protected TextRenderer textRenderer;
 
 	protected int nodeCount, edgeCount;
-
+	
+	protected float left, right, top, bottom;
+	
 	public GraphRenderer(Context ctx) {
 		this.ctx = ctx;
 		width = height = 1;
 		frames = 0;
 		firstFrameDate = System.currentTimeMillis();
-
+		
 		InputStream fontIn = ClassLoader
 				.getSystemResourceAsStream("org/graphstream/ui/gl/resource/verdanab.ttf");
 
@@ -110,7 +112,7 @@ public abstract class GraphRenderer implements GLEventListener {
 		gl.glMatrixMode(GL2.GL_PROJECTION);
 		gl.glPushMatrix();
 		gl.glLoadIdentity();
-		gl.glFrustum(-1, 1, -1, 1, 1, 10);
+		gl.glFrustum(left, right, bottom, top, 1, ctx.getCamera().getZFar());
 
 		drawContainer(gl);
 		
@@ -121,7 +123,8 @@ public abstract class GraphRenderer implements GLEventListener {
 		gl.glPopMatrix();
 		gl.glMatrixMode(GL2.GL_PROJECTION);
 
-		drawFPS(gl);
+		if( ctx.isDisplayInfos() )
+			drawFPS(gl);
 
 		gl.glFlush();
 	}
@@ -133,7 +136,7 @@ public abstract class GraphRenderer implements GLEventListener {
 	public void initFog(GL2 gl) {
 		gl.glEnable(GL2.GL_FOG);
 		gl.glFogi(GL2.GL_FOG_MODE, GL2.GL_EXP2);
-		gl.glFogfv(GL2.GL_FOG_COLOR, new float[] { 0.2f, 0.2f, 0.2f, 1.0f }, 0);
+		gl.glFogfv(GL2.GL_FOG_COLOR, new float[] { 0.2f, 0.2f, 0.2f, 0.1f }, 0);
 		gl.glHint(GL2.GL_FOG_HINT, GL.GL_NICEST);
 		setFog(gl);
 	}
@@ -265,5 +268,24 @@ public abstract class GraphRenderer implements GLEventListener {
 			int height) {
 		this.width = width;
 		this.height = height;
+		
+		if( width == height ) {
+			right = 1;
+			left = -1;
+			top = 1;
+			bottom = -1;
+		}
+		else if( width > height ) {
+			left = -1;
+			right = 1;
+			top = (height/(float)width);
+			bottom = -(height/(float)width);
+		}
+		else {
+			top = 1;
+			bottom = -1;
+			left = -(width/(float)height);
+			right = (width/(float)height);
+		}
 	}
 }

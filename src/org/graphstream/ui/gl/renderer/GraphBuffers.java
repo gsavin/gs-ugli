@@ -28,6 +28,7 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.graphstream.stream.Sink;
 import org.graphstream.ui.gl.Context;
@@ -59,6 +60,8 @@ public class GraphBuffers implements Sink, LayoutListener {
 		IntBuffer data;
 		int max;
 
+		ReentrantLock lock = new ReentrantLock();
+		
 		public void init(int maxNodes) {
 			data = IntBuffer.allocate(maxNodes * 2);
 			max = 0;
@@ -83,17 +86,23 @@ public class GraphBuffers implements Sink, LayoutListener {
 		}
 
 		public int getIndex(String id) {
+			lock.lock();
+			
 			int p = getPosition(id);
 
+			lock.unlock();
+			
 			if (p >= 0)
 				return data.get(2 * p + INDEX);
 
-			System.err.printf("id not found%n");
+			System.err.printf("id %s not found%n",id);
 
 			return -1;
 		}
 
 		public void setIndex(String id, int index) {
+			lock.lock();
+			
 			int p = getPosition(id);
 
 			if (p == -1) {
@@ -104,12 +113,14 @@ public class GraphBuffers implements Sink, LayoutListener {
 			} else {
 				data.put(2 * p + INDEX, index);
 			}
+			
+			lock.unlock();
 		}
 
 		public void updateIndex(int oldIndex, int newIndex) {
 			int p = getPosition(oldIndex);
 
-			if (p != -1) {
+			if (p >= 0) {
 				data.put(2 * p + INDEX, newIndex);
 			}
 		}
@@ -372,13 +383,13 @@ public class GraphBuffers implements Sink, LayoutListener {
 			nodeID2Index.removeIndex(index);
 			nodeID2Index.updateIndex(lastNodeIndex, index);
 
-			System.out.printf("%d <--> %d%n", lastNodeIndex, index);
+			//System.out.printf("%d <--> %d%n", lastNodeIndex, index);
 		}
 
 		if (lastNodeIndex >= 0)
 			lastNodeIndex--;
 
-		System.out.printf("after del, last index is : %d%n", lastNodeIndex);
+		//System.out.printf("after del, last index is : %d%n", lastNodeIndex);
 	}
 
 	public void nodeAdded(String sourceId, long timeId, String nodeId) {
@@ -401,7 +412,7 @@ public class GraphBuffers implements Sink, LayoutListener {
 
 	public void nodeRemoved(String sourceId, long timeId, String nodeId) {
 		int index = nodeID2Index.getIndex(nodeId);
-
+		
 		if (index != -1)
 			removeNodeInMemory(index);
 	}
@@ -510,11 +521,14 @@ public class GraphBuffers implements Sink, LayoutListener {
 	// Layout Listener
 	
 	public void nodeMoved(String id, float x, float y, float z) {
+		
 		int index = nodeID2Index.getIndex(id);
 		
-		setNodeX(index,x);
-		setNodeY(index,y);
-		setNodeZ(index,z);
+		if( index >= 0 ) {
+			setNodeX(index,x);
+			setNodeY(index,y);
+			setNodeZ(index,z);
+		}
 	}
 
 	public void nodeInfos(String id, float dx, float dy, float dz) {
