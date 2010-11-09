@@ -23,6 +23,7 @@ public class NEWTEngine implements Engine {
 
 		window.addWindowListener(new WindowAdapter() {
 			public void windowDestroyNotify(WindowEvent arg0) {
+				window.destroy(true);
 				System.exit(0);
 			};
 		});
@@ -60,6 +61,7 @@ public class NEWTEngine implements Engine {
 	
 	public void setFullscreen(boolean on) {
 		window.setFullscreen(on);
+		//System.out.printf("set fullscreen %s (%s)%n",on,window.isFullscreen());
 	}
 	
 	public boolean isFullscreen() {

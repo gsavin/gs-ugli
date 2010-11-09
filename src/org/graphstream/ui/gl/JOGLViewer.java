@@ -38,10 +38,10 @@ public class JOGLViewer extends JPanel {
 	private static final long serialVersionUID = -7148882898922182755L;
 
 	/*
-	 * Improves openGL performances.
+	 * Improves OpenGL performances.
 	 */
 	static {
-		GLProfile.initSingleton();
+		GLProfile.initSingleton(true);
 	}
 
 	GLProfile glp;
@@ -55,22 +55,23 @@ public class JOGLViewer extends JPanel {
 	Layout layoutAlgorithm;
 	
 	public JOGLViewer(Source source) {
-		this(source, true, Context.EngineType.NEWT);
+		this(source, true, Context.EngineType.NEWT, Context.RendererType.VERTEX_ARRAY);
 	}
 
 	public JOGLViewer(Source source, boolean autoLayout) {
-		this(source, autoLayout, Context.EngineType.NEWT);
+		this(source, autoLayout, Context.EngineType.NEWT,
+				Context.RendererType.VERTEX_ARRAY);
 	}
 
 	public JOGLViewer(Source source, boolean autoLayout,
-			Context.EngineType engineType) {
+			Context.EngineType engineType, Context.RendererType rendererType) {
 		this.source = source;
 
 		glp = GLProfile.getDefault();
 		glc = new GLCapabilities(glp);
 
-		ctx = new Context(source, engineType);
-		ctx.init(glc, "The GraphStream GL Viewer", 600, 600);
+		ctx = new Context(source, engineType, rendererType);
+		ctx.init(glc, true, "The GraphStream GL Viewer", 600, 600);
 
 		if (autoLayout)
 			enableAutoLayout();

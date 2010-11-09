@@ -25,12 +25,15 @@ package org.graphstream.ui.gl;
 import javax.media.opengl.GLCapabilities;
 
 import org.graphstream.stream.Source;
+import org.graphstream.ui.gl.engine.AWTEngine;
 import org.graphstream.ui.gl.engine.NEWTEngine;
 import org.graphstream.ui.gl.engine.SWINGEngine;
 import org.graphstream.ui.gl.event.KeyManager;
+import org.graphstream.ui.gl.renderer.GraphicGraphRenderer;
 import org.graphstream.ui.gl.renderer.VertexArrayRenderer;
+import org.graphstream.ui.gl.stylesheet.StyleSheetManager;
+import org.graphstream.ui.graphicGraph.stylesheet.StyleSheet;
 
-import com.jogamp.opengl.util.Animator;
 import com.jogamp.opengl.util.FPSAnimator;
 
 public class Context {
@@ -43,7 +46,17 @@ public class Context {
 	}
 
 	public static enum EngineType {
-		AWT, SWING, NEWT
+		AWT(AWTEngine.class), SWING(SWINGEngine.class), NEWT(NEWTEngine.class)
+		;
+		final Class<? extends Engine> clazz;
+
+		private EngineType(Class<? extends Engine> clazz) {
+			this.clazz = clazz;
+		}
+	}
+
+	public static enum RendererType {
+		GRAPHIC_GRAPH, VERTEX_ARRAY
 	}
 
 	protected Source source;
@@ -59,38 +72,66 @@ public class Context {
 
 	protected KeyManager keyManager;
 
+	protected StyleSheet stylesheet;
+	protected StyleSheetManager stylesheetManager;
+
 	protected boolean displayInfos = false;
-	
-	public Context(Source source, EngineType engineType) {
+
+	protected boolean displayCompass = true;
+
+	protected final boolean use3d;
+
+	public Context(Source source, EngineType engineType,
+			RendererType rendererType) {
+		this.use3d = true;
 		this.source = source;
 		this.camera = new Camera(this);
 		this.nodeColorMode = NodeColorMode.EachNodeOneColor;
-
 		this.fog = new Fog();
 
-		switch (engineType) {
-		case AWT:
-		case SWING:
-			engine = new SWINGEngine();
+		try {
+			this.engine = engineType.clazz.newInstance();
+		} catch (InstantiationException e) {
+			e.printStackTrace();
+			System.exit(1);
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+
+		switch (rendererType) {
+		case GRAPHIC_GRAPH:
+			this.renderer = new GraphicGraphRenderer(this, true);
 			break;
-		case NEWT:
-			engine = new NEWTEngine();
+		case VERTEX_ARRAY:
+			this.renderer = new VertexArrayRenderer(this);
 			break;
 		}
 
-		this.renderer = new VertexArrayRenderer(this);
 		this.keyManager = new KeyManager(this);
+
+		this.stylesheet = new StyleSheet();
+		this.stylesheetManager = new StyleSheetManager(stylesheet);
+		this.stylesheet.addListener(renderer.getStyleSheetListener());
+
+		if (this.source != null)
+			this.source.addAttributeSink(stylesheetManager);
 	}
 
-	public void init(GLCapabilities caps, String title, int width, int height) {
+	public void init(GLCapabilities caps, boolean initWindow, String title,
+			int width, int height) {
 		engine.init(caps);
-		engine.setWindowSize(width, height);
-		engine.setWindowVisible(true);
-		engine.setWindowTitle(title);
+
+		if (initWindow) {
+			engine.setWindowSize(width, height);
+			engine.setWindowVisible(true);
+			engine.setWindowTitle(title);
+		}
+
 		engine.addGLEventListener(renderer);
 		engine.addKeyListener(keyManager);
 
-		Animator animator = new FPSAnimator(engine.getGLAutoDrawable(), 60);
+		FPSAnimator animator = new FPSAnimator(engine.getGLAutoDrawable(), 60);
 		animator.add(engine.getGLAutoDrawable());
 		animator.start();
 	}
@@ -119,15 +160,27 @@ public class Context {
 		return renderer;
 	}
 
+	public StyleSheet getStyleSheet() {
+		return stylesheet;
+	}
+
 	public void toggleFullscreen() {
 		engine.setFullscreen(!engine.isFullscreen());
 	}
-	
+
 	public void setDisplayInfos(boolean on) {
 		this.displayInfos = on;
 	}
-	
-	public boolean isDisplayInfos() {
+
+	public boolean isInfosDisplayed() {
 		return displayInfos;
+	}
+
+	public boolean isCompassDisplayed() {
+		return displayCompass;
+	}
+
+	public boolean is3DView() {
+		return use3d;
 	}
 }

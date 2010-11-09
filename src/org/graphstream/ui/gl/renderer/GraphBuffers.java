@@ -28,14 +28,19 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.graphstream.stream.Sink;
 import org.graphstream.ui.gl.Context;
 import org.graphstream.ui.gl.Context.NodeColorMode;
+import org.graphstream.ui.graphicGraph.stylesheet.Rule;
+import org.graphstream.ui.graphicGraph.stylesheet.Style;
+import org.graphstream.ui.graphicGraph.stylesheet.StyleSheet;
+import org.graphstream.ui.graphicGraph.stylesheet.StyleSheetListener;
 import org.graphstream.ui.layout.LayoutListener;
 
-public class GraphBuffers implements Sink, LayoutListener {
+public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 	public static interface ID2Index {
 		void init(int maxNodes);
 
@@ -46,6 +51,49 @@ public class GraphBuffers implements Sink, LayoutListener {
 		void updateIndex(int oldIndex, int newIndex);
 
 		void removeIndex(int index);
+		
+		Iterable<String> eachID();
+	}
+
+	protected static class HashMapID2Index implements ID2Index {
+
+		ConcurrentHashMap<String, Integer> data;
+		String[] reverse;
+
+		public void init(int maxNodes) {
+			reverse = new String[maxNodes];
+			data = new ConcurrentHashMap<String, Integer>();
+		}
+
+		public int getIndex(String id) {
+			Integer i = data.get(id);
+			return i == null ? -1 : i;
+		}
+
+		public void setIndex(String id, int index) {
+			data.put(id, index);
+			reverse[index] = id;
+		}
+
+		public void updateIndex(int oldIndex, int newIndex) {
+
+			reverse[newIndex] = reverse[oldIndex];
+			reverse[oldIndex] = null;
+
+			if (reverse[newIndex] != null)
+				data.put(reverse[newIndex], newIndex);
+		}
+
+		public void removeIndex(int index) {
+			if (reverse[index] != null) {
+				data.remove(reverse[index]);
+				reverse[index] = null;
+			}
+		}
+
+		public Iterable<String> eachID() {
+			return data.keySet();
+		}
 	}
 
 	protected static class DraftID2Index implements ID2Index {
@@ -61,7 +109,7 @@ public class GraphBuffers implements Sink, LayoutListener {
 		int max;
 
 		ReentrantLock lock = new ReentrantLock();
-		
+
 		public void init(int maxNodes) {
 			data = IntBuffer.allocate(maxNodes * 2);
 			max = 0;
@@ -87,22 +135,22 @@ public class GraphBuffers implements Sink, LayoutListener {
 
 		public int getIndex(String id) {
 			lock.lock();
-			
+
 			int p = getPosition(id);
 
 			lock.unlock();
-			
+
 			if (p >= 0)
 				return data.get(2 * p + INDEX);
 
-			System.err.printf("id %s not found%n",id);
+			System.err.printf("id %s not found%n", id);
 
 			return -1;
 		}
 
 		public void setIndex(String id, int index) {
 			lock.lock();
-			
+
 			int p = getPosition(id);
 
 			if (p == -1) {
@@ -113,7 +161,7 @@ public class GraphBuffers implements Sink, LayoutListener {
 			} else {
 				data.put(2 * p + INDEX, index);
 			}
-			
+
 			lock.unlock();
 		}
 
@@ -138,6 +186,9 @@ public class GraphBuffers implements Sink, LayoutListener {
 			}
 		}
 
+		public Iterable<String> eachID() {
+			throw new Error("not implemented");
+		}
 	}
 
 	ID2Index nodeID2Index;
@@ -161,6 +212,12 @@ public class GraphBuffers implements Sink, LayoutListener {
 	int lastEdgeIndex;
 	ByteBuffer edges;
 	IntBuffer edgesI;
+
+	Context ctx;
+
+	public GraphBuffers(Context ctx) {
+		this.ctx = ctx;
+	}
 
 	/*
 	 * for debug
@@ -247,10 +304,10 @@ public class GraphBuffers implements Sink, LayoutListener {
 				ByteOrder.nativeOrder());
 		edgesI = edges.asIntBuffer();
 
-		nodeID2Index = new DraftID2Index();
+		nodeID2Index = new HashMapID2Index();
 		nodeID2Index.init(maxNodes);
 
-		edgeID2Index = new DraftID2Index();
+		edgeID2Index = new HashMapID2Index();
 		edgeID2Index.init(maxEdges);
 
 		long size = nodeIndexes.capacity() + nodeVertices.capacity()
@@ -303,6 +360,22 @@ public class GraphBuffers implements Sink, LayoutListener {
 
 			x = y = z = 0;
 
+			if (value instanceof Object[]) {
+				Object[] varray = (Object[]) value;
+
+				if (varray[0] instanceof Float) {
+					Float[] ar = new Float[varray.length];
+					for (int i = 0; i < varray.length; i++)
+						ar[i] = (Float) varray[i];
+					value = ar;
+				} else if (varray[0] instanceof Double) {
+					Double[] ar = new Double[varray.length];
+					for (int i = 0; i < varray.length; i++)
+						ar[i] = (Double) varray[i];
+					value = ar;
+				}
+			}
+
 			if (value instanceof Float) {
 				x = y = z = (Float) value;
 			} else if (value instanceof float[]) {
@@ -317,8 +390,15 @@ public class GraphBuffers implements Sink, LayoutListener {
 				x = varray.length > 0 ? varray[0] : 0;
 				y = varray.length > 1 ? varray[1] : 0;
 				z = varray.length > 2 ? varray[2] : 0;
+			} else if (value instanceof Double[]) {
+				Double[] varray = (Double[]) value;
+
+				x = varray.length > 0 ? varray[0].floatValue() : 0;
+				y = varray.length > 1 ? varray[1].floatValue() : 0;
+				z = varray.length > 2 ? varray[2].floatValue() : 0;
 			} else
-				System.err.printf("unknown coords type%n");
+				System.err.printf("unknown coords type : %s%n",
+						value.getClass());
 
 			int poolIndex = getNodePoolIndex(index);
 
@@ -383,13 +463,13 @@ public class GraphBuffers implements Sink, LayoutListener {
 			nodeID2Index.removeIndex(index);
 			nodeID2Index.updateIndex(lastNodeIndex, index);
 
-			//System.out.printf("%d <--> %d%n", lastNodeIndex, index);
+			// System.out.printf("%d <--> %d%n", lastNodeIndex, index);
 		}
 
 		if (lastNodeIndex >= 0)
 			lastNodeIndex--;
 
-		//System.out.printf("after del, last index is : %d%n", lastNodeIndex);
+		// System.out.printf("after del, last index is : %d%n", lastNodeIndex);
 	}
 
 	public void nodeAdded(String sourceId, long timeId, String nodeId) {
@@ -408,11 +488,13 @@ public class GraphBuffers implements Sink, LayoutListener {
 		setNodeX(poolIndex, 0);
 		setNodeY(poolIndex, 0);
 		setNodeZ(poolIndex, 0);
+		
+		setupNodeStyle(nodeId,null);
 	}
 
 	public void nodeRemoved(String sourceId, long timeId, String nodeId) {
 		int index = nodeID2Index.getIndex(nodeId);
-		
+
 		if (index != -1)
 			removeNodeInMemory(index);
 	}
@@ -519,43 +601,116 @@ public class GraphBuffers implements Sink, LayoutListener {
 	}
 
 	// Layout Listener
-	
+
 	public void nodeMoved(String id, float x, float y, float z) {
-		
+
 		int index = nodeID2Index.getIndex(id);
-		
-		if( index >= 0 ) {
-			setNodeX(index,x);
-			setNodeY(index,y);
-			setNodeZ(index,z);
+
+		if (index >= 0) {
+			setNodeX(index, x);
+			setNodeY(index, y);
+			setNodeZ(index, z);
 		}
 	}
 
 	public void nodeInfos(String id, float dx, float dy, float dz) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	public void edgeChanged(String id, float[] points) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	public void nodesMoved(Map<String, float[]> nodes) {
-		for( String id: nodes.keySet()
-				) {
+		for (String id : nodes.keySet()) {
 			float[] xyz = nodes.get(id);
-			nodeMoved(id,xyz[0],xyz[1],xyz[2]);
+			nodeMoved(id, xyz[0], xyz[1], xyz[2]);
 		}
 	}
 
 	public void edgesChanged(Map<String, float[]> edges) {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	public void stepCompletion(float percent) {
 		// TODO Auto-generated method stub
-		
+
+	}
+
+	public void setupNodeStyle(String id, String clazz) {
+		StyleSheet.NameSpace namespace = ctx.getStyleSheet()
+				.getNodeStyleNameSpace();
+
+		//
+		if (id != null) {
+			if (clazz != null) {
+				System.err
+						.printf("css class not implemented yet for this viewer%n");
+			}
+
+			Rule idRule = namespace.byId.get(id);
+			
+			if( idRule == null )
+				idRule = namespace.defaultRule;
+			
+			applyRuleToNode(id, idRule);
+		}
+		// All nodes with specific class
+		else if (clazz != null) {
+			System.err
+					.printf("css class not implemented yet for this viewer%n");
+		}
+		// All nodes
+		else {
+			System.err.printf("here%n");
+			for(String nodeId: nodeID2Index.eachID()) {
+				setupNodeStyle(nodeId,null);
+			}
+		}
+	}
+
+	protected void applyRuleToNode(String id, Rule rule) {
+		Style style = rule.style;
+		int index = nodeID2Index.getIndex(id);
+
+		if (index >= 0) {
+			if (style.getParent() != null && style.getParent() != rule)
+				applyRuleToNode(id, rule.style.getParent());
+
+			if (style.hasValue("fill-color")) {
+				switch(style.getFillColorCount()) {
+				case 0:
+					System.err.printf("WTF ? No color, but fill-color defined%n");
+					break;
+				case 1:
+					System.out.printf("color of %s : %s%n",id,style.getFillColor(0));
+					break;
+				default:
+					System.err.printf("multiple color not implemented%n");
+					break;
+				}
+			}
+		}
+	}
+
+	public void styleAdded(Rule oldRule, Rule newRule) {
+		System.out.printf("new rule: %s %s %s%n",newRule.selector.type,newRule.selector.id,newRule.selector.clazz);
+		switch (newRule.selector.type) {
+		case GRAPH:
+			break;
+		case NODE:
+			setupNodeStyle(newRule.selector.getId(),
+					newRule.selector.getClazz());
+			break;
+		case EDGE:
+		}
+	}
+
+	public void styleSheetCleared() {
+		// TODO Auto-generated method stub
+
 	}
 }

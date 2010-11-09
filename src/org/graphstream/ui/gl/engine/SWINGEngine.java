@@ -28,7 +28,8 @@ import java.awt.GraphicsEnvironment;
 import javax.media.opengl.GLAutoDrawable;
 import javax.media.opengl.GLCapabilities;
 import javax.media.opengl.GLEventListener;
-import javax.media.opengl.awt.GLCanvas;
+import javax.media.opengl.awt.GLJPanel;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 
 import org.graphstream.ui.gl.Engine;
@@ -39,13 +40,13 @@ import com.jogamp.newt.event.KeyListener;
 public class SWINGEngine implements Engine {
 	GraphicsDevice device;
 
-	GLCanvas canvas;
+	GLJPanel panel;
 	JFrame frame;
 
 	KeyListener_SWING_to_NEWT keyListeners;
 
 	public void init(GLCapabilities caps) {
-		if (canvas != null) {
+		if (panel != null) {
 			// TODO
 		}
 
@@ -55,14 +56,14 @@ public class SWINGEngine implements Engine {
 
 		keyListeners = new KeyListener_SWING_to_NEWT();
 
-		canvas = new GLCanvas(caps);
-		canvas.addKeyListener(keyListeners);
+		panel = new GLJPanel(caps);
+		panel.addKeyListener(keyListeners);
 		if (frame != null) {
 			// TODO
 		}
 
 		frame = new JFrame();
-		frame.add(canvas);
+		frame.add(panel);
 
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
@@ -74,7 +75,7 @@ public class SWINGEngine implements Engine {
 	}
 
 	public void addGLEventListener(GLEventListener l) {
-		canvas.addGLEventListener(l);
+		panel.addGLEventListener(l);
 	}
 
 	public void setWindowTitle(String title) {
@@ -86,7 +87,7 @@ public class SWINGEngine implements Engine {
 	}
 
 	public GLAutoDrawable getGLAutoDrawable() {
-		return canvas;
+		return panel;
 	}
 
 	public void addKeyListener(KeyListener l) {
@@ -103,5 +104,9 @@ public class SWINGEngine implements Engine {
 
 	public void setFullscreen(boolean on) {
 		device.setFullScreenWindow(on ? frame : null);
+	}
+	
+	public JComponent getJComponent() {
+		return panel;
 	}
 }

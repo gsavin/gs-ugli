@@ -34,6 +34,7 @@ import javax.media.opengl.GLAutoDrawable;
 
 import org.graphstream.ui.gl.Context;
 import org.graphstream.ui.gl.GraphRenderer;
+import org.graphstream.ui.graphicGraph.stylesheet.StyleSheetListener;
 import org.graphstream.ui.layout.LayoutListener;
 
 public class VertexArrayRenderer extends GraphRenderer {
@@ -56,7 +57,7 @@ public class VertexArrayRenderer extends GraphRenderer {
 		int maxEdges = Integer.parseInt(System.getProperty("gs.gl.maxedges",
 				"10000"));
 
-		graphBuffers = new GraphBuffers();
+		graphBuffers = new GraphBuffers(ctx);
 		graphBuffers.init(ctx, maxNodes, maxEdges);
 
 		ctx.getSource().addSink(graphBuffers);
@@ -135,6 +136,10 @@ public class VertexArrayRenderer extends GraphRenderer {
 	}
 
 	public LayoutListener getLayoutListener() {
+		return graphBuffers;
+	}
+	
+	public StyleSheetListener getStyleSheetListener() {
 		return graphBuffers;
 	}
 }

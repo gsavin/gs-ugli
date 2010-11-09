@@ -28,7 +28,8 @@ import javax.media.opengl.glu.GLU;
 public class Camera {
 	public static enum Mode {
 		NODE_TRACKING,
-		STATIC
+		STATIC,
+		CENTERED
 	}
 	
 	public static enum RotationAnim {
@@ -103,6 +104,14 @@ public class Camera {
 
 	public float getZFar() {
 		return zFar;
+	}
+	
+	public float getColatitude() {
+		return gamma;
+	}
+	
+	public float getLongitude() {
+		return teta;
 	}
 	
 	public void rotateLeft() {

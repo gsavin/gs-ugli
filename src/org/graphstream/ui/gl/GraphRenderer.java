@@ -31,6 +31,7 @@ import javax.media.opengl.GLAutoDrawable;
 import javax.media.opengl.GLEventListener;
 import javax.media.opengl.glu.GLU;
 
+import org.graphstream.ui.graphicGraph.stylesheet.StyleSheetListener;
 import org.graphstream.ui.layout.LayoutListener;
 
 import com.jogamp.opengl.util.awt.TextRenderer;
@@ -97,8 +98,7 @@ public abstract class GraphRenderer implements GLEventListener {
 	}
 
 	public void dispose(GLAutoDrawable drawable) {
-		// TODO Auto-generated method stub
-
+		glu.destroy();
 	}
 
 	public void display(GLAutoDrawable drawable) {
@@ -123,7 +123,10 @@ public abstract class GraphRenderer implements GLEventListener {
 		gl.glPopMatrix();
 		gl.glMatrixMode(GL2.GL_PROJECTION);
 
-		if( ctx.isDisplayInfos() )
+		if( ctx.isCompassDisplayed() )
+			drawCompass(gl);
+		
+		if( ctx.isInfosDisplayed() )
 			drawFPS(gl);
 
 		gl.glFlush();
@@ -132,6 +135,8 @@ public abstract class GraphRenderer implements GLEventListener {
 	protected abstract void renderGraph(GL2 gl);
 	
 	public abstract LayoutListener getLayoutListener();
+	
+	public abstract StyleSheetListener getStyleSheetListener();
 	
 	public void initFog(GL2 gl) {
 		gl.glEnable(GL2.GL_FOG);
@@ -262,6 +267,36 @@ public abstract class GraphRenderer implements GLEventListener {
 		textRenderer.draw(String.format("%d nodes, %d edges @ %d fps",
 				nodeCount, edgeCount, fps), 10, 10);
 		textRenderer.endRendering();
+	}
+	
+	protected void drawCompass(GL2 gl) {
+		float size = 0.1f * Math.min(Math.abs(left-right),Math.abs(bottom-top));
+		
+		gl.glDisable(GL.GL_DEPTH_TEST);
+		gl.glMatrixMode(GL2.GL_PROJECTION);
+		gl.glPushMatrix();
+		gl.glLoadIdentity();
+
+		gl.glMatrixMode(GL2.GL_MODELVIEW);
+		gl.glLoadIdentity();
+		gl.glDisable(GL2.GL_LIGHTING);
+		
+		gl.glPushMatrix();
+
+		glu.gluOrtho2D( left, right, bottom, top );//-1, 1, -1, 1 );
+		gl.glTranslatef(right-size, top-size, 0 );
+		gl.glRotatef(ctx.getCamera().getColatitude(),0,1,0);
+		gl.glRotatef(ctx.getCamera().getLongitude(),1,0,0);
+		gl.glColor4f(0.1f,0.1f,0.1f,0.5f);
+		glut.glutSolidCube(size);
+		gl.glColor4f(0,0,0,0.75f);
+		glut.glutWireCube(size);
+		gl.glPopMatrix();
+		
+		gl.glMatrixMode(GL2.GL_PROJECTION);
+		gl.glPopMatrix();
+		gl.glMatrixMode(GL2.GL_MODELVIEW);
+		gl.glEnable(GL.GL_DEPTH_TEST);
 	}
 
 	public void reshape(GLAutoDrawable drawable, int x, int y, int width,
