@@ -19,14 +19,20 @@
  * 	Antoine Dutot
  * 	Yoann Pigné
  * 	Guilhelm Savin
+ * 
+ * UGLI : GraphStream OpenGL Viewer
+ *  Copyright 2010 Guilhelm Savin
  */
 package org.graphstream.ui.gl.renderer;
 
+import java.awt.Color;
+import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -34,6 +40,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.graphstream.stream.Sink;
 import org.graphstream.ui.gl.Context;
 import org.graphstream.ui.gl.Context.NodeColorMode;
+import org.graphstream.ui.gl.Context.NodeSizeMode;
 import org.graphstream.ui.graphicGraph.stylesheet.Rule;
 import org.graphstream.ui.graphicGraph.stylesheet.Style;
 import org.graphstream.ui.graphicGraph.stylesheet.StyleSheet;
@@ -51,7 +58,7 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 		void updateIndex(int oldIndex, int newIndex);
 
 		void removeIndex(int index);
-		
+
 		Iterable<String> eachID();
 	}
 
@@ -191,32 +198,76 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 		}
 	}
 
-	ID2Index nodeID2Index;
-	ID2Index edgeID2Index;
+	public static enum NodeColor {
+		RED, GREEN, BLUE, ALPHA
+	}
 
-	int lastNodeIndex;
-	ByteBuffer nodeIndexes;
+	public static enum GraphBuffer {
+		NODE_INDEXES, NODE_VERTICES, NODE_COLORS, NODE_SIZES, EDGES
+	}
 
-	IntBuffer nodeIndexesI;
+	/**
+	 * Converter of node id to index.
+	 */
+	private ID2Index nodeID2Index;
+	/**
+	 * Converter of edge id to index.
+	 */
+	private ID2Index edgeID2Index;
 
-	int nodeStyleSize;
-	ByteBuffer nodeVertices;
-	ByteBuffer nodeStyle;
-	ByteBuffer nodeColors;
+	private EnumMap<GraphBuffer, ByteBuffer> buffers;
 
-	FloatBuffer nodeVerticesF;
-	FloatBuffer nodeColorsF;
+	/**
+	 * The last node index in buffers. Buffers are used from 0 to this last
+	 * index value.
+	 */
+	private int lastNodeIndex;
+	/**
+	 * The last edge index in buffers. Buffers are used from 0 to this last
+	 * index value.
+	 */
+	private int lastEdgeIndex;
 
-	boolean enableColorPointer = false;
+	/**
+	 * Active nodes indexes.
+	 */
+	private IntBuffer nodeIndexes;
+	/**
+	 * Node coordinates.
+	 */
+	private FloatBuffer nodeVertices;
+	/**
+	 * Node colors. Used only if {@link #enableColorPointer} is set to true.
+	 */
+	private FloatBuffer nodeColors;
+	/**
+	 * Node sizes. Used only if {@link #enableSizePointer} is set to true.
+	 */
+	private FloatBuffer nodeSizes;
+	/**
+	 * Edge data. Contains id of edges extremities.
+	 */
+	private IntBuffer edges;
 
-	int lastEdgeIndex;
-	ByteBuffer edges;
-	IntBuffer edgesI;
+	/**
+	 * Flag indicating if each node should have a color.
+	 */
+	private boolean enableColorPointer = false;
+	/**
+	 * Flag indicating if each node should have a size.
+	 */
+	private boolean enableSizePointer = false;
 
-	Context ctx;
+	protected Context ctx;
+
+	protected StyleSheet stylesheet;
 
 	public GraphBuffers(Context ctx) {
 		this.ctx = ctx;
+		this.buffers = new EnumMap<GraphBuffer, ByteBuffer>(GraphBuffer.class);
+
+		this.stylesheet = new StyleSheet();
+		this.stylesheet.addListener(this);
 	}
 
 	/*
@@ -226,37 +277,49 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 		out.printf("node indexes:%n");
 
 		for (int i = 0; i <= lastNodeIndex; i++)
-			out.printf("%d ", nodeIndexesI.get(i));
+			out.printf("%d ", nodeIndexes.get(i));
 
 		out.printf("%nnode vertices:%n");
 
 		for (int i = 0; i <= lastNodeIndex; i++) {
-			int index = nodeIndexesI.get(i);
-			out.printf("%d : (%f;%f;%f)%n", index,
-					nodeVerticesF.get(3 * index),
-					nodeVerticesF.get(3 * index + 1),
-					nodeVerticesF.get(3 * index + 2));
+			int index = nodeIndexes.get(i);
+			out.printf("%d : (%f;%f;%f)%n", index, nodeVertices.get(3 * index),
+					nodeVertices.get(3 * index + 1),
+					nodeVertices.get(3 * index + 2));
 		}
 	}
 
 	public Buffer createNewVertexBufferView() {
-		return nodeVertices.duplicate().order(ByteOrder.nativeOrder());
+		return buffers.get(GraphBuffer.NODE_VERTICES).duplicate()
+				.order(ByteOrder.nativeOrder());
 	}
 
 	public Buffer createNewIndexBufferView() {
-		return nodeIndexes.duplicate().order(ByteOrder.nativeOrder());
+		return buffers.get(GraphBuffer.NODE_INDEXES).duplicate()
+				.order(ByteOrder.nativeOrder());
 	}
 
 	public Buffer createNewEdgeBufferView() {
-		return edges.duplicate().order(ByteOrder.nativeOrder());
+		return buffers.get(GraphBuffer.EDGES).duplicate()
+				.order(ByteOrder.nativeOrder());
 	}
 
 	public Buffer createNewNodeColorView() {
-		return nodeColors.duplicate().order(ByteOrder.nativeOrder());
+		return buffers.get(GraphBuffer.NODE_COLORS).duplicate()
+				.order(ByteOrder.nativeOrder());
+	}
+
+	public Buffer createNewNodeSizeView() {
+		return buffers.get(GraphBuffer.NODE_SIZES).duplicate()
+				.order(ByteOrder.nativeOrder());
 	}
 
 	public boolean isColorPointerEnabled() {
 		return enableColorPointer;
+	}
+
+	public boolean isSizePointerEnabled() {
+		return enableSizePointer;
 	}
 
 	public int getActiveIndexCount() {
@@ -272,37 +335,91 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 	}
 
 	public int getVertexSize() {
-		return nodeVerticesF.capacity();
+		return nodeVertices.capacity();
+	}
+
+	public int getColorComposantCount() {
+		return 4;
+	}
+
+	private void allocateBuffers(int maxNodes, int maxEdges) {
+		int colorBufferSize = enableColorPointer ? 4 * maxNodes : 1;
+		int sizeBufferSize = enableSizePointer ? maxNodes : 1;
+
+		if (buffers.size() != 0) {
+			for (ByteBuffer buffer : buffers.values())
+				buffer.clear();
+			buffers.clear();
+		}
+
+		/*
+		 * Allocation
+		 */
+		buffers.put(GraphBuffer.NODE_INDEXES,
+				ByteBuffer.allocateDirect(maxNodes * Integer.SIZE));
+		buffers.put(GraphBuffer.NODE_VERTICES,
+				ByteBuffer.allocateDirect(3 * maxNodes * Float.SIZE));
+		buffers.put(GraphBuffer.NODE_COLORS,
+				ByteBuffer.allocateDirect(colorBufferSize * Float.SIZE));
+		buffers.put(GraphBuffer.NODE_SIZES,
+				ByteBuffer.allocateDirect(sizeBufferSize * Float.SIZE));
+		buffers.put(GraphBuffer.EDGES, ByteBuffer.allocateDirect(2 * maxEdges));
+
+		/*
+		 * Ordering
+		 */
+		for (ByteBuffer buffer : buffers.values())
+			buffer.order(ByteOrder.nativeOrder());
+
+		/*
+		 * Update last indexes
+		 */
+		lastNodeIndex = -1;
+		lastEdgeIndex = -1;
+
+		/*
+		 * Create views
+		 */
+		nodeIndexes = buffers.get(GraphBuffer.NODE_INDEXES).asIntBuffer();
+		nodeVertices = buffers.get(GraphBuffer.NODE_VERTICES).asFloatBuffer();
+		nodeColors = buffers.get(GraphBuffer.NODE_COLORS).asFloatBuffer();
+		nodeSizes = buffers.get(GraphBuffer.NODE_SIZES).asFloatBuffer();
+		edges = buffers.get(GraphBuffer.EDGES).asIntBuffer();
 	}
 
 	protected void init(Context ctx, int maxNodes, int maxEdges) {
-		nodeIndexes = ByteBuffer.allocateDirect(maxNodes * Integer.SIZE).order(
-				ByteOrder.nativeOrder());
-		nodeIndexesI = nodeIndexes.asIntBuffer();
-		nodeVertices = ByteBuffer.allocateDirect(3 * maxNodes * Float.SIZE)
-				.order(ByteOrder.nativeOrder());
-		nodeVerticesF = nodeVertices.asFloatBuffer();
+		/*
+		 * nodeIndexes = ByteBuffer.allocateDirect(maxNodes *
+		 * Integer.SIZE).order( ByteOrder.nativeOrder()); nodeIndexesI =
+		 * nodeIndexes.asIntBuffer(); nodeVertices = ByteBuffer.allocateDirect(3
+		 * * maxNodes * Float.SIZE) .order(ByteOrder.nativeOrder());
+		 * nodeVerticesF = nodeVertices.asFloatBuffer();
+		 * 
+		 * 
+		 * if (enableColorPointer) { nodeColors = ByteBuffer.allocateDirect(4 *
+		 * maxNodes * Float.SIZE) .order(ByteOrder.nativeOrder()); nodeColorsF =
+		 * nodeColors.asFloatBuffer(); } else { nodeColors =
+		 * ByteBuffer.allocateDirect(4 * 4 * Float.SIZE).order(
+		 * ByteOrder.nativeOrder()); nodeColorsF = nodeColors.asFloatBuffer(); }
+		 * 
+		 * if (enableSizePointer) { nodeSizes =
+		 * ByteBuffer.allocateDirect(maxNodes * Float.SIZE).order(
+		 * ByteOrder.nativeOrder()); nodeSizesF = nodeColors.asFloatBuffer(); }
+		 * else { nodeSizes = ByteBuffer.allocateDirect(4 * 4 *
+		 * Float.SIZE).order( ByteOrder.nativeOrder()); nodeColorsF =
+		 * nodeColors.asFloatBuffer(); }
+		 * 
+		 * edges = ByteBuffer.allocateDirect(2 * maxEdges).order(
+		 * ByteOrder.nativeOrder()); edgesI = edges.asIntBuffer();
+		 */
 
 		enableColorPointer = ctx.getNodeColorMode() == NodeColorMode.EachNodeOneColor;
+		enableSizePointer = ctx.getNodeSizeMode() == NodeSizeMode.EachNodeOneSize;
 
-		if (enableColorPointer) {
-			nodeColors = ByteBuffer.allocateDirect(4 * maxNodes * Float.SIZE)
-					.order(ByteOrder.nativeOrder());
-			nodeColorsF = nodeColors.asFloatBuffer();
-		} else {
-			nodeColors = ByteBuffer.allocateDirect(4 * 4 * Float.SIZE).order(
-					ByteOrder.nativeOrder());
-			nodeColorsF = nodeColors.asFloatBuffer();
-		}
+		allocateBuffers(maxNodes, maxEdges);
 
 		for (int i = 0; i < maxNodes; i++)
 			setNodePoolIndex(i, i);
-
-		lastNodeIndex = -1;
-
-		edges = ByteBuffer.allocateDirect(2 * maxEdges).order(
-				ByteOrder.nativeOrder());
-		edgesI = edges.asIntBuffer();
 
 		nodeID2Index = new HashMapID2Index();
 		nodeID2Index.init(maxNodes);
@@ -310,8 +427,10 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 		edgeID2Index = new HashMapID2Index();
 		edgeID2Index.init(maxEdges);
 
-		long size = nodeIndexes.capacity() + nodeVertices.capacity()
-				+ edges.capacity() + nodeColors.capacity();
+		long size = 0;
+		for (ByteBuffer buffer : buffers.values())
+			size += buffer.capacity();
+
 		String symbol = "o";
 
 		if (size > 1024) {
@@ -330,26 +449,40 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 		}
 
 		System.out.printf("buffers use %d%s%n", size, symbol);
+		
+		java.util.Random random = new java.util.Random();
+		for(int i=0; i<maxNodes; i++)
+			setNodeSize(i,random.nextInt(10)+1);
 	}
 
 	private void setNodePoolIndex(int index, int value) {
-		nodeIndexesI.put(index, value);
+		nodeIndexes.put(index, value);
 	}
 
 	private int getNodePoolIndex(int index) {
-		return nodeIndexesI.get(index);
+		return nodeIndexes.get(index);
 	}
 
 	private void setNodeX(int poolIndex, float x) {
-		nodeVerticesF.put(poolIndex * 3 + 0, x);
+		nodeVertices.put(poolIndex * 3 + 0, x);
 	}
 
 	private void setNodeY(int poolIndex, float y) {
-		nodeVerticesF.put(poolIndex * 3 + 1, y);
+		nodeVertices.put(poolIndex * 3 + 1, y);
 	}
 
 	private void setNodeZ(int poolIndex, float z) {
-		nodeVerticesF.put(poolIndex * 3 + 2, z);
+		nodeVertices.put(poolIndex * 3 + 2, z);
+	}
+
+	private void setNodeColor(int poolIndex, NodeColor color, float value) {
+		if (enableColorPointer)
+			nodeColors.put(poolIndex * 4 + color.ordinal(), value);
+	}
+
+	private void setNodeSize(int poolIndex, float size) {
+		if (enableSizePointer)
+			nodeSizes.put(poolIndex, size);
 	}
 
 	protected void checkNodeCoords(String nodeId, String attr, Object value) {
@@ -448,7 +581,7 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 			int poolIndex = getNodePoolIndex(index);
 
 			for (int i = 0; i < 4; i++)
-				nodeColorsF.put(poolIndex * 4 + i, rgba[i]);
+				nodeColors.put(poolIndex * 4 + i, rgba[i]);
 		}
 	}
 
@@ -473,12 +606,12 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 	}
 
 	public void nodeAdded(String sourceId, long timeId, String nodeId) {
-		if (lastNodeIndex >= nodeIndexesI.capacity() - 1)
+		if (lastNodeIndex >= nodeIndexes.capacity() - 1)
 			throw new OutOfMemoryError(String.format(
 					"out of memory for nodes%n"
 							+ "set \"gs.gl.maxnodes\" to an higher value%n"
 							+ "current value: %d nodes%n",
-					nodeIndexesI.capacity()));
+					nodeIndexes.capacity()));
 
 		int index = ++lastNodeIndex;
 		int poolIndex = getNodePoolIndex(index);
@@ -488,8 +621,8 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 		setNodeX(poolIndex, 0);
 		setNodeY(poolIndex, 0);
 		setNodeZ(poolIndex, 0);
-		
-		setupNodeStyle(nodeId,null);
+
+		setupNodeStyle(nodeId, null);
 	}
 
 	public void nodeRemoved(String sourceId, long timeId, String nodeId) {
@@ -501,11 +634,11 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 
 	public void edgeAdded(String sourceId, long timeId, String edgeId,
 			String fromNodeId, String toNodeId, boolean directed) {
-		if (2 * lastEdgeIndex >= edgesI.capacity() - 1)
+		if (2 * lastEdgeIndex >= edges.capacity() - 1)
 			throw new OutOfMemoryError(String.format(
 					"out of memory for edges%n"
 							+ "set \"gs.gl.maxedges\" to an higher value%n"
-							+ "current value: %d nodes%n", edgesI.capacity()));
+							+ "current value: %d nodes%n", edges.capacity()));
 
 		int index = ++lastEdgeIndex;
 
@@ -523,8 +656,8 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 
 		edgeID2Index.setIndex(edgeId, index);
 
-		edgesI.put(2 * index + 0, indexA);
-		edgesI.put(2 * index + 1, indexB);
+		edges.put(2 * index + 0, indexA);
+		edges.put(2 * index + 1, indexB);
 	}
 
 	public void edgeRemoved(String sourceId, long timeId, String edgeId) {
@@ -534,20 +667,35 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 
 	public void graphAttributeAdded(String sourceId, long timeId,
 			String attribute, Object value) {
-		// TODO Auto-generated method stub
-
+		if (attribute.equals("ui.stylesheet")) {
+			if (value instanceof String) {
+				try {
+					stylesheet.load((String) value);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
 	public void graphAttributeChanged(String sourceId, long timeId,
 			String attribute, Object oldValue, Object newValue) {
-		// TODO Auto-generated method stub
-
+		if (attribute.equals("ui.stylesheet")) {
+			if (newValue instanceof String) {
+				try {
+					stylesheet.load((String) newValue);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
 	public void graphAttributeRemoved(String sourceId, long timeId,
 			String attribute) {
-		// TODO Auto-generated method stub
-
+		if (attribute.equals("ui.stylesheet")) {
+			stylesheet.clear();
+		}
 	}
 
 	public void nodeAttributeAdded(String sourceId, long timeId, String nodeId,
@@ -641,10 +789,9 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 	}
 
 	public void setupNodeStyle(String id, String clazz) {
-		StyleSheet.NameSpace namespace = ctx.getStyleSheet()
-				.getNodeStyleNameSpace();
+		StyleSheet.NameSpace namespace = stylesheet.getNodeStyleNameSpace();
 
-		//
+		// One node
 		if (id != null) {
 			if (clazz != null) {
 				System.err
@@ -652,10 +799,10 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 			}
 
 			Rule idRule = namespace.byId.get(id);
-			
-			if( idRule == null )
+
+			if (idRule == null)
 				idRule = namespace.defaultRule;
-			
+
 			applyRuleToNode(id, idRule);
 		}
 		// All nodes with specific class
@@ -666,8 +813,8 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 		// All nodes
 		else {
 			System.err.printf("here%n");
-			for(String nodeId: nodeID2Index.eachID()) {
-				setupNodeStyle(nodeId,null);
+			for (String nodeId : nodeID2Index.eachID()) {
+				setupNodeStyle(nodeId, null);
 			}
 		}
 	}
@@ -681,12 +828,23 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 				applyRuleToNode(id, rule.style.getParent());
 
 			if (style.hasValue("fill-color")) {
-				switch(style.getFillColorCount()) {
+				switch (style.getFillColorCount()) {
 				case 0:
-					System.err.printf("WTF ? No color, but fill-color defined%n");
+					System.err
+							.printf("WTF ? No color, but fill-color defined%n");
 					break;
 				case 1:
-					System.out.printf("color of %s : %s%n",id,style.getFillColor(0));
+					Color c = style.getFillColor(0);
+
+					setNodeColor(getNodePoolIndex(index), NodeColor.RED,
+							c.getRed() / 255.0f);
+					setNodeColor(getNodePoolIndex(index), NodeColor.GREEN,
+							c.getGreen() / 255.0f);
+					setNodeColor(getNodePoolIndex(index), NodeColor.BLUE,
+							c.getBlue() / 255.0f);
+					setNodeColor(getNodePoolIndex(index), NodeColor.ALPHA,
+							c.getAlpha() / 255.0f);
+
 					break;
 				default:
 					System.err.printf("multiple color not implemented%n");
@@ -697,7 +855,8 @@ public class GraphBuffers implements Sink, LayoutListener, StyleSheetListener {
 	}
 
 	public void styleAdded(Rule oldRule, Rule newRule) {
-		System.out.printf("new rule: %s %s %s%n",newRule.selector.type,newRule.selector.id,newRule.selector.clazz);
+		System.out.printf("new rule: %s %s %s%n", newRule.selector.type,
+				newRule.selector.id, newRule.selector.clazz);
 		switch (newRule.selector.type) {
 		case GRAPH:
 			break;

@@ -136,8 +136,6 @@ public abstract class GraphRenderer implements GLEventListener {
 	
 	public abstract LayoutListener getLayoutListener();
 	
-	public abstract StyleSheetListener getStyleSheetListener();
-	
 	public void initFog(GL2 gl) {
 		gl.glEnable(GL2.GL_FOG);
 		gl.glFogi(GL2.GL_FOG_MODE, GL2.GL_EXP2);

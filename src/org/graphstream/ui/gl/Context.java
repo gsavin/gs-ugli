@@ -31,8 +31,6 @@ import org.graphstream.ui.gl.engine.SWINGEngine;
 import org.graphstream.ui.gl.event.KeyManager;
 import org.graphstream.ui.gl.renderer.GraphicGraphRenderer;
 import org.graphstream.ui.gl.renderer.VertexArrayRenderer;
-import org.graphstream.ui.gl.stylesheet.StyleSheetManager;
-import org.graphstream.ui.graphicGraph.stylesheet.StyleSheet;
 
 import com.jogamp.opengl.util.FPSAnimator;
 
@@ -43,6 +41,10 @@ public class Context {
 
 	public static enum EdgeColorMode {
 		AllEdgeOneColor, EachEdgeOneColor, ExtremitiesBlending
+	}
+	
+	public static enum NodeSizeMode {
+		AllNodeOneSize, EachNodeOneSize
 	}
 
 	public static enum EngineType {
@@ -63,7 +65,8 @@ public class Context {
 	protected Camera camera;
 
 	protected NodeColorMode nodeColorMode;
-
+	protected NodeSizeMode nodeSizeMode;
+	
 	protected Fog fog;
 
 	protected Engine engine;
@@ -71,9 +74,6 @@ public class Context {
 	protected GraphRenderer renderer;
 
 	protected KeyManager keyManager;
-
-	protected StyleSheet stylesheet;
-	protected StyleSheetManager stylesheetManager;
 
 	protected boolean displayInfos = false;
 
@@ -87,6 +87,7 @@ public class Context {
 		this.source = source;
 		this.camera = new Camera(this);
 		this.nodeColorMode = NodeColorMode.EachNodeOneColor;
+		this.nodeSizeMode = NodeSizeMode.EachNodeOneSize;
 		this.fog = new Fog();
 
 		try {
@@ -109,13 +110,6 @@ public class Context {
 		}
 
 		this.keyManager = new KeyManager(this);
-
-		this.stylesheet = new StyleSheet();
-		this.stylesheetManager = new StyleSheetManager(stylesheet);
-		this.stylesheet.addListener(renderer.getStyleSheetListener());
-
-		if (this.source != null)
-			this.source.addAttributeSink(stylesheetManager);
 	}
 
 	public void init(GLCapabilities caps, boolean initWindow, String title,
@@ -147,6 +141,10 @@ public class Context {
 	public NodeColorMode getNodeColorMode() {
 		return nodeColorMode;
 	}
+	
+	public NodeSizeMode getNodeSizeMode() {
+		return nodeSizeMode;
+	}
 
 	public Fog getFog() {
 		return fog;
@@ -158,10 +156,6 @@ public class Context {
 
 	public GraphRenderer getRenderer() {
 		return renderer;
-	}
-
-	public StyleSheet getStyleSheet() {
-		return stylesheet;
 	}
 
 	public void toggleFullscreen() {
